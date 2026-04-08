@@ -25,7 +25,7 @@ model User {
   // Relations
   skills        String[]  // Array of skills
   assessments   Assessment[]
-  resume        Resume?
+  resume        Resume[]
   coverLetter   CoverLetter[]
 }
 
@@ -45,13 +45,17 @@ model Assessment {
 
 model Resume {
   id          String    @id @default(cuid())
-  userId      String    @unique    // One resume per user
+  userId      String
   user        User      @relation(fields: [userId], references: [id])
+  title       String
+  targetRole  String?
   content     String    @db.Text // Markdown content
   atsScore    Float?
   feedback    String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
 }
 
 model CoverLetter {
@@ -96,4 +100,14 @@ model IndustryInsight {
   nextUpdate    DateTime  // Scheduled update time
 
   @@index([industry])
+}
+
+model Feedback {
+  id               Int      @id @default(autoincrement())
+  user_id          String
+  recommendation_id String
+  rating           Int
+  is_helpful       Boolean
+  feedback_text    String?
+  created_at       DateTime @default(now())
 }

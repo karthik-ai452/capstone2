@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { Edit2, Eye, Trash2 } from "lucide-react";
+import { Eye, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   Card,
@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import CoverLetterDownloadButton from "@/components/cover-letter-download-button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -105,6 +106,13 @@ export default function CoverLetterList({ coverLetters }) {
           <CardContent>
             <div className="text-muted-foreground text-sm line-clamp-3">
               {letter.jobDescription}
+            </div>
+            <div className="mt-4">
+              <CoverLetterDownloadButton
+                content={letter.content}
+                jobTitle={letter.jobTitle}
+                companyName={letter.companyName}
+              />
             </div>
           </CardContent>
         </Card>

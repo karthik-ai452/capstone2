@@ -56,13 +56,29 @@ export const entrySchema = z
     }
   );
 
+export const certificationSchema = z.object({
+  name: z.string().min(1, "Certification name is required"),
+  issuer: z.string().min(1, "Issuer is required"),
+  credentialUrl: z
+    .string()
+    .url("Enter a valid URL")
+    .or(z.literal(""))
+    .optional(),
+});
+
 export const resumeSchema = z.object({
+  resumeTitle: z.string().min(1, "Resume name is required"),
+  fullName: z.string().min(1, "Name is required"),
+  targetRole: z.string().optional(),
   contactInfo: contactSchema,
-  summary: z.string().min(1, "Professional summary is required"),
+  summary: z.string().optional(),
   skills: z.string().min(1, "Skills are required"),
   experience: z.array(entrySchema),
   education: z.array(entrySchema),
   projects: z.array(entrySchema),
+  certifications: z.array(certificationSchema).optional(),
+  achievements: z.string().optional(),
+  additionalInfo: z.string().optional(),
 });
 
 export const coverLetterSchema = z.object({

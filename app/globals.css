@@ -121,3 +121,75 @@
   height: 100%;
   background: radial-gradient(circle, transparent, rgba(0, 0, 0, 0.9));
 }
+
+.wmde-markdown.resume-markdown,
+#resume-pdf .wmde-markdown.resume-markdown {
+  line-height: 1.35;
+  font-size: 0.96rem;
+}
+
+.wmde-markdown.resume-markdown > * {
+  margin-top: 0;
+}
+
+.wmde-markdown.resume-markdown h1,
+.wmde-markdown.resume-markdown h2,
+.wmde-markdown.resume-markdown h3,
+.wmde-markdown.resume-markdown h4,
+.wmde-markdown.resume-markdown p,
+.wmde-markdown.resume-markdown ul,
+.wmde-markdown.resume-markdown ol,
+.wmde-markdown.resume-markdown blockquote,
+.wmde-markdown.resume-markdown hr,
+#resume-pdf .wmde-markdown.resume-markdown h1,
+#resume-pdf .wmde-markdown.resume-markdown h2,
+#resume-pdf .wmde-markdown.resume-markdown h3,
+#resume-pdf .wmde-markdown.resume-markdown h4,
+#resume-pdf .wmde-markdown.resume-markdown p,
+#resume-pdf .wmde-markdown.resume-markdown ul,
+#resume-pdf .wmde-markdown.resume-markdown ol,
+#resume-pdf .wmde-markdown.resume-markdown blockquote,
+#resume-pdf .wmde-markdown.resume-markdown hr {
+  margin-top: 0.3rem;
+  margin-bottom: 0.3rem;
+}
+
+.wmde-markdown.resume-markdown h1,
+#resume-pdf .wmde-markdown.resume-markdown h1 {
+  line-height: 1.1;
+  margin-bottom: 0.4rem;
+  padding-bottom: 0.22rem;
+  border-bottom: 1px solid rgba(208, 215, 222, 0.9);
+}
+
+.wmde-markdown.resume-markdown h2,
+#resume-pdf .wmde-markdown.resume-markdown h2 {
+  line-height: 1.15;
+  margin-top: 0.45rem;
+  margin-bottom: 0.22rem;
+  padding-bottom: 0.18rem;
+  border-bottom: 1px solid rgba(208, 215, 222, 0.9);
+}
+
+.wmde-markdown.resume-markdown h3,
+#resume-pdf .wmde-markdown.resume-markdown h3 {
+  margin-top: 0.3rem;
+  margin-bottom: 0.12rem;
+}
+
+.wmde-markdown.resume-markdown ul,
+.wmde-markdown.resume-markdown ol,
+#resume-pdf .wmde-markdown.resume-markdown ul,
+#resume-pdf .wmde-markdown.resume-markdown ol {
+  padding-left: 1.1rem;
+}
+
+.wmde-markdown.resume-markdown li,
+#resume-pdf .wmde-markdown.resume-markdown li {
+  margin: 0.04rem 0;
+}
+
+.wmde-markdown.resume-markdown hr,
+#resume-pdf .wmde-markdown.resume-markdown hr {
+  margin: 0.25rem 0 0.35rem;
+}

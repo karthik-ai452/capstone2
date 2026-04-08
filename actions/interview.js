@@ -3,6 +3,7 @@
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { buildInterviewRecommendations } from "@/lib/interview-recommendations";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
@@ -111,6 +112,13 @@ export async function saveQuizResult(questions, answers, score) {
   }
 
   try {
+    const recommendations = buildInterviewRecommendations({
+      questionResults,
+      quizScore: score,
+      userSkills: user.skills ?? [],
+      industry: user.industry ?? "",
+    });
+
     const assessment = await db.assessment.create({
       data: {
         userId: user.id,
@@ -121,7 +129,10 @@ export async function saveQuizResult(questions, answers, score) {
       },
     });
 
-    return assessment;
+    return {
+      ...assessment,
+      recommendationSummary: recommendations,
+    };
   } catch (error) {
     console.error("Error saving quiz result:", error);
     throw new Error("Failed to save quiz result");
@@ -148,7 +159,15 @@ export async function getAssessments() {
       },
     });
 
-    return assessments;
+    return assessments.map((assessment) => ({
+      ...assessment,
+      recommendationSummary: buildInterviewRecommendations({
+        questionResults: assessment.questions,
+        quizScore: assessment.quizScore,
+        userSkills: user.skills ?? [],
+        industry: user.industry ?? "",
+      }),
+    }));
   } catch (error) {
     console.error("Error fetching assessments:", error);
     throw new Error("Failed to fetch assessments");
