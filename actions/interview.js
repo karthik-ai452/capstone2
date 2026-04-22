@@ -8,6 +8,65 @@ import { buildInterviewRecommendations } from "@/lib/interview-recommendations";
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
+function extractJsonPayload(text) {
+  const cleanedText = text.replace(/```(?:json)?\n?/gi, "").trim();
+
+  try {
+    return JSON.parse(cleanedText);
+  } catch {
+    const objectMatch = cleanedText.match(/\{[\s\S]*\}/);
+    if (objectMatch) {
+      return JSON.parse(objectMatch[0]);
+    }
+
+    const arrayMatch = cleanedText.match(/\[[\s\S]*\]/);
+    if (arrayMatch) {
+      return { questions: JSON.parse(arrayMatch[0]) };
+    }
+
+    throw new Error("Quiz response was not valid JSON");
+  }
+}
+
+function normalizeQuestion(question, index) {
+  const prompt =
+    typeof question?.question === "string" ? question.question.trim() : "";
+  const options = Array.isArray(question?.options)
+    ? question.options
+        .map((option) => (typeof option === "string" ? option.trim() : ""))
+        .filter(Boolean)
+    : [];
+  const correctAnswer =
+    typeof question?.correctAnswer === "string"
+      ? question.correctAnswer.trim()
+      : "";
+  const explanation =
+    typeof question?.explanation === "string"
+      ? question.explanation.trim()
+      : "";
+
+  if (!prompt) {
+    throw new Error(`Question ${index + 1} is missing its prompt`);
+  }
+
+  if (options.length !== 4) {
+    throw new Error(`Question ${index + 1} does not have exactly 4 options`);
+  }
+
+  if (!correctAnswer || !options.includes(correctAnswer)) {
+    throw new Error(
+      `Question ${index + 1} is missing a valid correct answer from its options`
+    );
+  }
+
+  return {
+    question: prompt,
+    options,
+    correctAnswer,
+    explanation: explanation || "Review the underlying concept and try again.",
+  };
+}
+
 export async function generateQuiz() {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
@@ -45,13 +104,21 @@ export async function generateQuiz() {
   `;
 
   try {
-    const result = await model.generateContent(prompt);
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+      },
+    });
     const response = result.response;
     const text = response.text();
-    const cleanedText = text.replace(/```(?:json)?\n?/g, "").trim();
-    const quiz = JSON.parse(cleanedText);
+    const quiz = extractJsonPayload(text);
 
-    return quiz.questions;
+    if (!Array.isArray(quiz?.questions) || quiz.questions.length === 0) {
+      throw new Error("Quiz response did not include any questions");
+    }
+
+    return quiz.questions.slice(0, 10).map(normalizeQuestion);
   } catch (error) {
     console.error("Error generating quiz:", error);
     throw new Error("Failed to generate quiz questions");

@@ -21,6 +21,26 @@ import { improveWithAI } from "@/actions/resume";
 import { toast } from "sonner";
 import useFetch from "@/hooks/use-fetch";
 
+const MONTH_OPTIONS = [
+  { value: "01", label: "January" },
+  { value: "02", label: "February" },
+  { value: "03", label: "March" },
+  { value: "04", label: "April" },
+  { value: "05", label: "May" },
+  { value: "06", label: "June" },
+  { value: "07", label: "July" },
+  { value: "08", label: "August" },
+  { value: "09", label: "September" },
+  { value: "10", label: "October" },
+  { value: "11", label: "November" },
+  { value: "12", label: "December" },
+];
+
+const CURRENT_YEAR = new Date().getFullYear();
+const YEAR_OPTIONS = Array.from({ length: 80 }, (_, index) =>
+  String(CURRENT_YEAR + 5 - index)
+);
+
 const formatDisplayDate = (dateString) => {
   if (!dateString) return "";
   const date = parse(dateString, "yyyy-MM", new Date());
@@ -32,6 +52,47 @@ const formatInputDate = (dateString) => {
   const date = parse(dateString, "MMM yyyy", new Date());
   return format(date, "yyyy-MM");
 };
+
+function MonthYearSelect({ value, onChange, disabled = false }) {
+  const [year = "", month = ""] = value ? value.split("-") : [];
+
+  const handlePartChange = (part, nextValue) => {
+    const nextYear = part === "year" ? nextValue : year;
+    const nextMonth = part === "month" ? nextValue : month;
+    onChange(nextYear && nextMonth ? `${nextYear}-${nextMonth}` : "");
+  };
+
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <select
+        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+        value={month}
+        onChange={(event) => handlePartChange("month", event.target.value)}
+        disabled={disabled}
+      >
+        <option value="">Month</option>
+        {MONTH_OPTIONS.map((monthOption) => (
+          <option key={monthOption.value} value={monthOption.value}>
+            {monthOption.label}
+          </option>
+        ))}
+      </select>
+      <select
+        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+        value={year}
+        onChange={(event) => handlePartChange("year", event.target.value)}
+        disabled={disabled}
+      >
+        <option value="">Year</option>
+        {YEAR_OPTIONS.map((yearOption) => (
+          <option key={yearOption} value={yearOption}>
+            {yearOption}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 export function EntryForm({ type, entries, onChange }) {
   const [isAdding, setIsAdding] = useState(false);
@@ -57,6 +118,8 @@ export function EntryForm({ type, entries, onChange }) {
   });
 
   const current = watch("current");
+  const startDate = watch("startDate");
+  const endDate = watch("endDate");
 
   const closeForm = () => {
     reset({
@@ -195,7 +258,7 @@ export function EntryForm({ type, entries, onChange }) {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Input
                   placeholder="Title/Position"
@@ -222,10 +285,12 @@ export function EntryForm({ type, entries, onChange }) {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Input
-                  type="month"
-                  {...register("startDate")}
-                  error={errors.startDate}
+                <input type="hidden" {...register("startDate")} />
+                <MonthYearSelect
+                  value={startDate}
+                  onChange={(value) =>
+                    setValue("startDate", value, { shouldValidate: true })
+                  }
                 />
                 {errors.startDate && (
                   <p className="text-sm text-red-500">
@@ -234,11 +299,13 @@ export function EntryForm({ type, entries, onChange }) {
                 )}
               </div>
               <div className="space-y-2">
-                <Input
-                  type="month"
-                  {...register("endDate")}
+                <input type="hidden" {...register("endDate")} />
+                <MonthYearSelect
+                  value={endDate}
+                  onChange={(value) =>
+                    setValue("endDate", value, { shouldValidate: true })
+                  }
                   disabled={current}
-                  error={errors.endDate}
                 />
                 {errors.endDate && (
                   <p className="text-sm text-red-500">

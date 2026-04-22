@@ -7,8 +7,9 @@ import { auth } from "@clerk/nextjs/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { revalidatePath } from "next/cache";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+const geminiApiKey = process.env.GEMINI_API_KEY;
+const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null;
+const model = genAI?.getGenerativeModel({ model: "gemini-2.5-flash" });
 const globalForResumePool = globalThis;
 
 const resumePool =
@@ -33,7 +34,7 @@ async function getAuthenticatedUser() {
   return user;
 }
 
-export async function saveResume({ id, title, targetRole, content }) {
+export async function saveResume({ id, title, targetRole, content, formData }) {
   const user = await getAuthenticatedUser();
 
   try {
@@ -41,6 +42,13 @@ export async function saveResume({ id, title, targetRole, content }) {
       title: title?.trim() || "General Resume",
       targetRole: targetRole?.trim() || null,
       content,
+      feedback: formData
+        ? JSON.stringify({
+            type: "resume-builder-draft",
+            version: 1,
+            ...formData,
+          })
+        : null,
     };
 
     let resume;
@@ -64,19 +72,20 @@ export async function saveResume({ id, title, targetRole, content }) {
            "title" = $1,
            "targetRole" = $2,
            "content" = $3,
+           "feedback" = $4,
            "updatedAt" = NOW()
-         WHERE "id" = $4 AND "userId" = $5
+         WHERE "id" = $5 AND "userId" = $6
          RETURNING *`,
-        [payload.title, payload.targetRole, payload.content, id, user.id]
+        [payload.title, payload.targetRole, payload.content, payload.feedback, id, user.id]
       );
       resume = updated.rows[0];
     } else {
       const newResumeId = randomUUID();
       const created = await resumePool.query(
-        `INSERT INTO "Resume" ("id", "userId", "title", "targetRole", "content", "updatedAt")
-         VALUES ($1, $2, $3, $4, $5, NOW())
+        `INSERT INTO "Resume" ("id", "userId", "title", "targetRole", "content", "feedback", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, $6, NOW())
          RETURNING *`,
-        [newResumeId, user.id, payload.title, payload.targetRole, payload.content]
+        [newResumeId, user.id, payload.title, payload.targetRole, payload.content, payload.feedback]
       );
       resume = created.rows[0];
     }
@@ -116,7 +125,23 @@ export async function getResume(id) {
     [id, user.id]
   );
 
-  return result.rows[0] || null;
+  const resume = result.rows[0] || null;
+
+  if (!resume) return null;
+
+  try {
+    const parsed = resume.feedback ? JSON.parse(resume.feedback) : null;
+    if (parsed?.type === "resume-builder-draft") {
+      return {
+        ...resume,
+        formData: parsed,
+      };
+    }
+  } catch (error) {
+    console.warn("Unable to parse saved resume draft data", error);
+  }
+
+  return resume;
 }
 
 export async function deleteResume(id) {
@@ -147,6 +172,10 @@ export async function deleteResume(id) {
 export async function improveWithAI({ current, type }) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
+  if (!model) {
+    console.error("GEMINI_API_KEY is not configured");
+    throw new Error("AI is not configured. Add GEMINI_API_KEY in Vercel.");
+  }
 
   const user = await db.user.findUnique({
     where: { clerkUserId: userId },

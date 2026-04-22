@@ -37,15 +37,41 @@ function extractFullNameFromContent(content, fallback = "") {
   return match?.[1]?.trim() || fallback;
 }
 
+function getDefaultResumeFormValues(initialResume) {
+  const savedFormData = initialResume?.formData || {};
+
+  return {
+    resumeTitle: initialResume?.title || savedFormData.resumeTitle || "",
+    fullName:
+      savedFormData.fullName ||
+      extractFullNameFromContent(initialResume?.content, ""),
+    targetRole: initialResume?.targetRole || savedFormData.targetRole || "",
+    contactInfo: savedFormData.contactInfo || {},
+    summary: savedFormData.summary || "",
+    skills: savedFormData.skills || "",
+    experience: savedFormData.experience || [],
+    education: savedFormData.education || [],
+    projects: savedFormData.projects || [],
+    certifications: savedFormData.certifications || [],
+    achievements: savedFormData.achievements || "",
+    additionalInfo: savedFormData.additionalInfo || "",
+  };
+}
+
 export default function ResumeBuilder({ initialResume }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState(initialResume ? "preview" : "edit");
   const [previewContent, setPreviewContent] = useState(initialResume?.content || "");
   const { user } = useUser();
   const [resumeMode, setResumeMode] = useState("preview");
-  const [selectedTemplate, setSelectedTemplate] = useState("classic");
+  const [selectedTemplate, setSelectedTemplate] = useState(
+    initialResume?.formData?.selectedTemplate || "classic"
+  );
   const [isGenerating, setIsGenerating] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState(null);
+  const [isUsingSavedContent, setIsUsingSavedContent] = useState(
+    Boolean(initialResume?.content)
+  );
 
   const {
     control,
@@ -56,20 +82,7 @@ export default function ResumeBuilder({ initialResume }) {
     formState: { errors },
   } = useForm({
     resolver: zodResolver(resumeSchema),
-    defaultValues: {
-      resumeTitle: initialResume?.title || "",
-      fullName: extractFullNameFromContent(initialResume?.content, ""),
-      targetRole: initialResume?.targetRole || "",
-      contactInfo: {},
-      summary: "",
-      skills: "",
-      experience: [],
-      education: [],
-      projects: [],
-      certifications: [],
-      achievements: "",
-      additionalInfo: "",
-    },
+    defaultValues: getDefaultResumeFormValues(initialResume),
   });
 
   const {
@@ -81,7 +94,7 @@ export default function ResumeBuilder({ initialResume }) {
 
   const formValues = watch();
   const fullName = formValues.fullName?.trim() || "Your Name";
-  const initialFullName = extractFullNameFromContent(initialResume?.content, "");
+  const isLegacyResume = Boolean(initialResume?.id && !initialResume?.formData);
   const shouldSyncTemplatePreview =
     activeTab === "edit" || resumeMode === "preview";
 
@@ -100,32 +113,27 @@ export default function ResumeBuilder({ initialResume }) {
     );
 
   useEffect(() => {
-    reset({
-      resumeTitle: initialResume?.title || "",
-      fullName: initialFullName,
-      targetRole: initialResume?.targetRole || "",
-      contactInfo: {},
-      summary: "",
-      skills: "",
-      experience: [],
-      education: [],
-      projects: [],
-      certifications: [],
-      achievements: "",
-      additionalInfo: "",
-    });
+    reset(getDefaultResumeFormValues(initialResume));
 
     setPreviewContent(initialResume?.content || "");
     setActiveTab(initialResume ? "preview" : "edit");
     setResumeMode("preview");
+    setSelectedTemplate(initialResume?.formData?.selectedTemplate || "classic");
     setLastSavedAt(initialResume?.updatedAt ? new Date(initialResume.updatedAt) : null);
-  }, [initialResume, initialFullName, reset]);
+    setIsUsingSavedContent(Boolean(initialResume?.content));
+  }, [initialResume, reset]);
 
   useEffect(() => {
-    if (shouldSyncTemplatePreview) {
+    if (shouldSyncTemplatePreview && !isUsingSavedContent) {
       setPreviewContent(getCombinedContent());
     }
-  }, [formValues, selectedTemplate, fullName, shouldSyncTemplatePreview]);
+  }, [
+    formValues,
+    selectedTemplate,
+    fullName,
+    shouldSyncTemplatePreview,
+    isUsingSavedContent,
+  ]);
 
   useEffect(() => {
     if (saveResult && !isSaving) {
@@ -172,11 +180,30 @@ export default function ResumeBuilder({ initialResume }) {
       title: data.resumeTitle,
       targetRole: data.targetRole,
       content: previewContent,
+      formData: {
+        ...data,
+        selectedTemplate,
+      },
     });
+  };
+
+  const handleSave = async () => {
+    if (isLegacyResume && activeTab === "preview") {
+      await saveResumeFn({
+        id: initialResume.id,
+        title: formValues.resumeTitle || initialResume.title,
+        targetRole: formValues.targetRole || initialResume.targetRole,
+        content: previewContent,
+      });
+      return;
+    }
+
+    await handleSubmit(onSubmit)();
   };
 
   const handleCreateNew = () => {
     setLastSavedAt(null);
+    setIsUsingSavedContent(false);
     reset({
       resumeTitle: "",
       fullName: "",
@@ -199,6 +226,7 @@ export default function ResumeBuilder({ initialResume }) {
 
   const handleTemplateChange = (templateId) => {
     setSelectedTemplate(templateId);
+    setIsUsingSavedContent(false);
     setPreviewContent(buildTemplateContent(templateId));
     if (activeTab === "preview") {
       setResumeMode("preview");
@@ -234,7 +262,7 @@ export default function ResumeBuilder({ initialResume }) {
             <FilePlus2 className="mr-2 h-4 w-4" />
             New Resume
           </Button>
-          <Button onClick={handleSubmit(onSubmit)} disabled={isSaving}>
+          <Button onClick={handleSave} disabled={isSaving}>
             {isSaving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -551,7 +579,13 @@ export default function ResumeBuilder({ initialResume }) {
               type="button"
               className="mb-2"
               onClick={() =>
-                setResumeMode(resumeMode === "preview" ? "edit" : "preview")
+                setResumeMode((currentMode) => {
+                  const nextMode = currentMode === "preview" ? "edit" : "preview";
+                  if (nextMode === "edit") {
+                    setIsUsingSavedContent(false);
+                  }
+                  return nextMode;
+                })
               }
             >
               {resumeMode === "preview" ? (
